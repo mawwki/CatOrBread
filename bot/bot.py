@@ -109,11 +109,15 @@ async def handle_photo(message: Message):
         is_other = result["prediction"] == "other"
 
         if is_other:
-            response = (
-                f"<b>Хм, это что-то другое!</b>\n\n"
-                f"Я не уверен, что это кот или хлеб.\n"
-                f"Уверенность: <b>{confidence}%</b>"
+            await processing_msg.delete()
+            await bot.send_sticker(
+                message.chat.id,
+                sticker="CAACAgIAAxkBAAEFASJqRS1bRHJa4veOggx56dEgrdWRswACp3EAAh5t8EgXiDMpQ5GFwzwE"
             )
+            await message.reply(
+                "<b>И чё ты мне скинул?</b> Отправь фото кота или хлеба"
+            )
+            return
         else:
             bar_cat = "▓" * int(result["probabilities"]["cat"] / 10) + "░" * (10 - int(result["probabilities"]["cat"] / 10))
             bar_bread = "▓" * int(result["probabilities"]["bread"] / 10) + "░" * (10 - int(result["probabilities"]["bread"] / 10))
