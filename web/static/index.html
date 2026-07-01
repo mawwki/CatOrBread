@@ -76,6 +76,10 @@
             <path d="M14 26c0-4 2-8 10-8s10 4 10 8" stroke="var(--color-accent)" stroke-width="2" fill="none"/>
             <path d="M18 26l3-3M24 26l3-3M30 26l3-3" stroke="var(--color-background)" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none" id="otherResultIcon" hidden>
+            <circle cx="24" cy="24" r="20" stroke="var(--color-text-secondary)" stroke-width="2" fill="none" stroke-dasharray="4 4"/>
+            <path d="M16 16l16 16M32 16l-16 16" stroke="var(--color-text-secondary)" stroke-width="2" stroke-linecap="round"/>
+          </svg>
         </div>
         <h2 class="result-label" id="resultLabel">Это Кот!</h2>
         <p class="result-desc" id="resultDesc">пушистый друг</p>
@@ -151,6 +155,7 @@ const breadValue = document.getElementById('breadValue');
 const badgeText = document.getElementById('badgeText');
 const catIcon = document.getElementById('catResultIcon');
 const breadIcon = document.getElementById('breadResultIcon');
+const otherIcon = document.getElementById('otherResultIcon');
 const resultBadge = document.getElementById('resultBadge');
 
 uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
@@ -220,20 +225,23 @@ function showResults(data) {
   errorArea.hidden = true;
 
   const isCat = data.prediction === 'cat';
+  const isBread = data.prediction === 'bread';
+  const isOther = data.prediction === 'other';
 
-  resultLabel.textContent = `Это ${data.label}!`;
+  resultLabel.textContent = isOther ? 'Это что-то другое!' : `Это ${data.label}!`;
   resultDesc.textContent = data.description;
 
   catIcon.hidden = !isCat;
-  breadIcon.hidden = isCat;
+  breadIcon.hidden = !isBread;
+  otherIcon.hidden = !isOther;
 
   catFill.style.width = data.probabilities.cat + '%';
   breadFill.style.width = data.probabilities.bread + '%';
   catValue.textContent = data.probabilities.cat + '%';
   breadValue.textContent = data.probabilities.bread + '%';
 
-  badgeText.textContent = `Confidence: ${data.confidence}%`;
-  resultBadge.className = 'result-badge ' + (isCat ? 'badge-cat' : 'badge-bread');
+  badgeText.textContent = `Уверенность: ${data.confidence}%`;
+  resultBadge.className = 'result-badge ' + (isCat ? 'badge-cat' : isBread ? 'badge-bread' : 'badge-other');
 }
 
 function resetAll() {

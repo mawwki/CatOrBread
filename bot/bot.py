@@ -106,15 +106,24 @@ async def handle_photo(message: Message):
         desc = result["description"]
         confidence = result["confidence"]
 
-        bar_cat = "▓" * int(result["probabilities"]["cat"] / 10) + "░" * (10 - int(result["probabilities"]["cat"] / 10))
-        bar_bread = "▓" * int(result["probabilities"]["bread"] / 10) + "░" * (10 - int(result["probabilities"]["bread"] / 10))
+        is_other = result["prediction"] == "other"
 
-        response = (
-            f"<b>Это {label}!</b> ({desc})\n\n"
-            f"Уверенность: <b>{confidence}%</b>\n\n"
-            f"Кот   {bar_cat}  {result['probabilities']['cat']}%\n"
-            f"Хлеб  {bar_bread}  {result['probabilities']['bread']}%"
-        )
+        if is_other:
+            response = (
+                f"<b>Хм, это что-то другое!</b>\n\n"
+                f"Я не уверен, что это кот или хлеб.\n"
+                f"Уверенность: <b>{confidence}%</b>"
+            )
+        else:
+            bar_cat = "▓" * int(result["probabilities"]["cat"] / 10) + "░" * (10 - int(result["probabilities"]["cat"] / 10))
+            bar_bread = "▓" * int(result["probabilities"]["bread"] / 10) + "░" * (10 - int(result["probabilities"]["bread"] / 10))
+
+            response = (
+                f"<b>Это {label}!</b> ({desc})\n\n"
+                f"Уверенность: <b>{confidence}%</b>\n\n"
+                f"Кот   {bar_cat}  {result['probabilities']['cat']}%\n"
+                f"Хлеб  {bar_bread}  {result['probabilities']['bread']}%"
+            )
 
         await processing_msg.edit_text(response)
 

@@ -48,18 +48,33 @@ def predict(image_bytes_or_path):
     ])
     img_t = transform(img).unsqueeze(0).to(device)
 
+    CONFIDENCE_THRESHOLD = 0.75
+
     with torch.no_grad():
         outputs = model(img_t)
         probs = torch.nn.functional.softmax(outputs, dim=1)[0]
         cat_prob = probs[0].item()
         bread_prob = probs[1].item()
+        max_prob = max(cat_prob, bread_prob)
         predicted = 0 if cat_prob > bread_prob else 1
+
+    if max_prob < CONFIDENCE_THRESHOLD:
+        return {
+            "prediction": "other",
+            "label": "Другое",
+            "description": "ни кот, ни хлеб",
+            "confidence": round(max_prob * 100, 2),
+            "probabilities": {
+                "cat": round(cat_prob * 100, 2),
+                "bread": round(bread_prob * 100, 2),
+            },
+        }
 
     return {
         "prediction": CLASSES[predicted],
         "label": "Кот" if predicted == 0 else "Хлеб",
         "description": "пушистый котик" if predicted == 0 else "аппетитная выпечка",
-        "confidence": round(max(cat_prob, bread_prob) * 100, 2),
+        "confidence": round(max_prob * 100, 2),
         "probabilities": {
             "cat": round(cat_prob * 100, 2),
             "bread": round(bread_prob * 100, 2),

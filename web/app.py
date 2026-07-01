@@ -20,11 +20,12 @@ static_dir.mkdir(parents=True, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 async def index():
     index_path = static_dir / "index.html"
     if index_path.exists():
-        return index_path.read_text(encoding="utf-8")
+        content = index_path.read_text(encoding="utf-8")
+        return HTMLResponse(content)
     return HTMLResponse("<h1>Cat or Bread?</h1><p>Frontend not found</p>")
 
 @app.post("/predict")
