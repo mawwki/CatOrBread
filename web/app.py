@@ -37,9 +37,12 @@ async def predict_image(file: UploadFile = File(...)):
 
 @app.get("/health")
 async def health():
-    from model.predict import get_model
-    model = get_model()
-    return {"status": "ok" if model else "no_model"}
+    from model.predict import load_model
+    try:
+        model = load_model()
+        return {"status": "ok" if model else "no_model"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))

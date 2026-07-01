@@ -38,7 +38,7 @@ def get_start_keyboard():
     kb = [
         [InlineKeyboardButton(
             text="Open Mini App",
-            web_app={"url": os.getenv("WEBAPP_URL", "https://cat-or-bread.onrender.com")}
+            web_app={"url": os.getenv("WEBAPP_URL", "https://catorbread.onrender.com")}
         )],
         [InlineKeyboardButton(text="How it works", callback_data="how_it_works")],
     ]
