@@ -1,11 +1,9 @@
-"""Fine-tune existing 3-class model with more epochs"""
-import os
-import sys
-import random
+"""Train 3-class classifier with balanced sampling"""
+import os, sys, random
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 from torchvision import transforms, models
 from PIL import Image
 from pathlib import Path
@@ -13,9 +11,11 @@ from pathlib import Path
 DATA_DIR = Path(__file__).parent / "data"
 MODEL_DIR = Path(__file__).parent / "model"
 MODEL_PATH = MODEL_DIR / "cat_or_bread.pth"
+os.makedirs(MODEL_DIR, exist_ok=True)
 
 CLASSES = ["cat", "bread", "other"]
 CLASS_LABELS = {"cat": 0, "bread": 1, "other": 2}
+
 
 class ImageFolderDataset(Dataset):
     def __init__(self, data, transform=None):
@@ -30,6 +30,7 @@ class ImageFolderDataset(Dataset):
             img = self.transform(img)
         return img, label
 
+
 def load_data():
     all_data = []
     for cls_name, cls_idx in CLASS_LABELS.items():
@@ -39,6 +40,7 @@ def load_data():
             all_data.append((str(p), cls_idx))
         print(f"{cls_name}: {len(paths)} images")
     return all_data
+
 
 def train():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -69,56 +71,32 @@ def train():
 
     train_ds = ImageFolderDataset(train_data, train_transform)
     val_ds = ImageFolderDataset(val_data, val_transform)
-    train_loader = DataLoader(train_ds, batch_size=32, shuffle=True, num_workers=0)
+
+    # Balanced sampling: equal probability for each class
+    train_labels = [lbl for _, lbl in train_data]
+    class_counts = [train_labels.count(i) for i in range(3)]
+    print(f"Train class counts: {class_counts}")
+    weights = [1.0 / class_counts[lbl] for lbl in train_labels]
+    sampler = WeightedRandomSampler(weights, len(train_data), replacement=True)
+
+    train_loader = DataLoader(train_ds, batch_size=32, sampler=sampler, num_workers=0)
     val_loader = DataLoader(val_ds, batch_size=32, shuffle=False, num_workers=0)
 
-    model = models.resnet18(weights=None)
+    model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
     model.fc = nn.Sequential(
         nn.Linear(512, 256),
         nn.ReLU(),
         nn.Dropout(0.5),
         nn.Linear(256, 3),
     )
-    if MODEL_PATH.exists():
-        model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
-        print("Loaded existing model")
     model = model.to(device)
 
-    counts = [0, 0, 0]
-    for _, lbl in all_data:
-        counts[lbl] += 1
-    total = sum(counts)
-    weights = [total / c for c in counts]
-    class_weight = torch.tensor(weights, dtype=torch.float).to(device)
-    print(f"Class weights: {weights}")
-
-    criterion = nn.CrossEntropyLoss(weight=class_weight)
-    optimizer = optim.AdamW(model.parameters(), lr=0.0001, weight_decay=1e-4)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.AdamW(model.parameters(), lr=0.0003, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20)
 
     best_acc = 0.0
-    # First pass: find current best accuracy from file
-    try:
-        state = torch.load(MODEL_PATH, map_location=device)
-        model.load_state_dict(state)
-        print("Reloaded best model for evaluation")
-        model.eval()
-        val_correct = 0
-        val_total = 0
-        with torch.no_grad():
-            for inputs, labels in val_loader:
-                inputs, labels = inputs.to(device), labels.to(device)
-                outputs = model(inputs)
-                _, predicted = torch.max(outputs, 1)
-                val_total += labels.size(0)
-                val_correct += (predicted == labels).sum().item()
-        best_acc = 100 * val_correct / val_total
-        print(f"Current best val acc: {best_acc:.1f}%")
-        model.train()
-    except Exception as e:
-        print(f"Could not evaluate saved model: {e}")
-
-    for epoch in range(30):
+    for epoch in range(25):
         model.train()
         running_loss = 0.0
         correct = 0
@@ -165,6 +143,7 @@ def train():
             torch.save(model.state_dict(), MODEL_PATH)
             print(f"  Saved ({val_acc:.1f}%)")
     print(f"Best: {best_acc:.1f}%")
+
 
 if __name__ == "__main__":
     train()
