@@ -59,7 +59,7 @@ def predict(image_bytes_or_path):
         max_prob = max(cat_prob, bread_prob)
         predicted = 0 if cat_prob > bread_prob else 1
 
-    if max_logit < 0.5 or logit_diff < 0.5:
+    if max_logit < 0.8 or logit_diff < 1.2:
         return {
             "prediction": "other",
             "label": "Другое",
