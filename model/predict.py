@@ -1,4 +1,4 @@
-"""Inference module for cat vs bread classifier"""
+"""Inference module for cat / bread / other classifier"""
 import os
 import torch
 import torch.nn as nn
@@ -7,11 +7,17 @@ from PIL import Image
 from pathlib import Path
 
 MODEL_PATH = Path(__file__).parent / "cat_or_bread.pth"
-CLASSES = ["cat", "bread"]
+CLASSES = ["cat", "bread", "other"]
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 _model = None
+
+LABELS = {
+    "cat": {"label": "Кот", "desc": "пушистый котик"},
+    "bread": {"label": "Хлеб", "desc": "аппетитная выпечка"},
+    "other": {"label": "Другое", "desc": "ни кот, ни хлеб"},
+}
 
 def load_model():
     global _model
@@ -22,7 +28,7 @@ def load_model():
         nn.Linear(512, 256),
         nn.ReLU(),
         nn.Dropout(0.5),
-        nn.Linear(256, 2),
+        nn.Linear(256, 3),
     )
     if MODEL_PATH.exists():
         model.load_state_dict(torch.load(MODEL_PATH, map_location=device, weights_only=True))
@@ -50,35 +56,22 @@ def predict(image_bytes_or_path):
 
     with torch.no_grad():
         logits = model(img_t)[0]
-        cat_logit, bread_logit = logits[0].item(), logits[1].item()
-        logit_diff = abs(cat_logit - bread_logit)
-        max_logit = max(cat_logit, bread_logit)
         probs = torch.nn.functional.softmax(logits, dim=0)
-        cat_prob = probs[0].item()
-        bread_prob = probs[1].item()
-        max_prob = max(cat_prob, bread_prob)
-        predicted = 0 if cat_prob > bread_prob else 1
+        cat_prob, bread_prob, other_prob = probs[0].item(), probs[1].item(), probs[2].item()
+        predicted = torch.argmax(probs).item()
+        pred_class = CLASSES[predicted]
+        confidence = round(max(probs).item() * 100, 2)
 
-    if max_logit < 0.8 or logit_diff < 1.2:
-        return {
-            "prediction": "other",
-            "label": "Другое",
-            "description": "ни кот, ни хлеб",
-            "confidence": round(max_prob * 100, 2),
-            "probabilities": {
-                "cat": round(cat_prob * 100, 2),
-                "bread": round(bread_prob * 100, 2),
-            },
-        }
-
+    info = LABELS[pred_class]
     return {
-        "prediction": CLASSES[predicted],
-        "label": "Кот" if predicted == 0 else "Хлеб",
-        "description": "пушистый котик" if predicted == 0 else "аппетитная выпечка",
-        "confidence": round(max_prob * 100, 2),
+        "prediction": pred_class,
+        "label": info["label"],
+        "description": info["desc"],
+        "confidence": confidence,
         "probabilities": {
             "cat": round(cat_prob * 100, 2),
             "bread": round(bread_prob * 100, 2),
+            "other": round(other_prob * 100, 2),
         },
     }
 

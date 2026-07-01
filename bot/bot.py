@@ -119,14 +119,16 @@ async def handle_photo(message: Message):
             )
             return
         else:
-            bar_cat = "▓" * int(result["probabilities"]["cat"] / 10) + "░" * (10 - int(result["probabilities"]["cat"] / 10))
-            bar_bread = "▓" * int(result["probabilities"]["bread"] / 10) + "░" * (10 - int(result["probabilities"]["bread"] / 10))
+            def bar(v):
+                return "▓" * int(v / 10) + "░" * (10 - int(v / 10))
 
+            p = result["probabilities"]
             response = (
                 f"<b>Это {label}!</b> ({desc})\n\n"
                 f"Уверенность: <b>{confidence}%</b>\n\n"
-                f"Кот   {bar_cat}  {result['probabilities']['cat']}%\n"
-                f"Хлеб  {bar_bread}  {result['probabilities']['bread']}%"
+                f"🐱 Кот    {bar(p['cat'])}  {p['cat']}%\n"
+                f"🍞 Хлеб   {bar(p['bread'])}  {p['bread']}%\n"
+                f"❓ Другое {bar(p['other'])}  {p['other']}%"
             )
 
         await processing_msg.edit_text(response)

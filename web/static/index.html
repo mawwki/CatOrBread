@@ -119,6 +119,20 @@
             </div>
             <span class="confidence-value" id="breadValue">50%</span>
           </div>
+          <div class="confidence-row">
+            <span class="confidence-label">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="5" fill="var(--color-text)" opacity="0.15"/>
+                <circle cx="10" cy="10" r="3" fill="none" stroke="var(--color-text)" stroke-width="1.5"/>
+                <path d="M10 2v3M10 15v3M2 10h3M15 10h3" stroke="var(--color-text)" stroke-width="1.2" stroke-linecap="round"/>
+              </svg>
+              Другое
+            </span>
+            <div class="confidence-track">
+              <div class="confidence-fill other-fill" id="otherFill" style="width:10%"></div>
+            </div>
+            <span class="confidence-value" id="otherValue">10%</span>
+          </div>
         </div>
         <div class="result-badge" id="resultBadge">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -157,8 +171,10 @@ const resultLabel = document.getElementById('resultLabel');
 const resultDesc = document.getElementById('resultDesc');
 const catFill = document.getElementById('catFill');
 const breadFill = document.getElementById('breadFill');
+const otherFill = document.getElementById('otherFill');
 const catValue = document.getElementById('catValue');
 const breadValue = document.getElementById('breadValue');
+const otherValue = document.getElementById('otherValue');
 const badgeText = document.getElementById('badgeText');
 const catIcon = document.getElementById('catResultIcon');
 const breadIcon = document.getElementById('breadResultIcon');
@@ -244,8 +260,10 @@ function showResults(data) {
 
   catFill.style.width = data.probabilities.cat + '%';
   breadFill.style.width = data.probabilities.bread + '%';
+  otherFill.style.width = data.probabilities.other + '%';
   catValue.textContent = data.probabilities.cat + '%';
   breadValue.textContent = data.probabilities.bread + '%';
+  otherValue.textContent = data.probabilities.other + '%';
 
   badgeText.textContent = `Уверенность: ${data.confidence}%`;
   resultBadge.className = 'result-badge ' + (isCat ? 'badge-cat' : isBread ? 'badge-bread' : 'badge-other');
