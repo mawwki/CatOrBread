@@ -48,17 +48,18 @@ def predict(image_bytes_or_path):
     ])
     img_t = transform(img).unsqueeze(0).to(device)
 
-    CONFIDENCE_THRESHOLD = 0.75
-
     with torch.no_grad():
-        outputs = model(img_t)
-        probs = torch.nn.functional.softmax(outputs, dim=1)[0]
+        logits = model(img_t)[0]
+        cat_logit, bread_logit = logits[0].item(), logits[1].item()
+        logit_diff = abs(cat_logit - bread_logit)
+        max_logit = max(cat_logit, bread_logit)
+        probs = torch.nn.functional.softmax(logits, dim=0)
         cat_prob = probs[0].item()
         bread_prob = probs[1].item()
         max_prob = max(cat_prob, bread_prob)
         predicted = 0 if cat_prob > bread_prob else 1
 
-    if max_prob < CONFIDENCE_THRESHOLD:
+    if max_logit < 1.5 or logit_diff < 2.5:
         return {
             "prediction": "other",
             "label": "Другое",
