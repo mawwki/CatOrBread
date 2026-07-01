@@ -82,13 +82,16 @@ def train():
     train_loader = DataLoader(train_ds, batch_size=32, sampler=sampler, num_workers=0)
     val_loader = DataLoader(val_ds, batch_size=32, shuffle=False, num_workers=0)
 
-    model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+    model = models.resnet18(weights=None)
     model.fc = nn.Sequential(
         nn.Linear(512, 256),
         nn.ReLU(),
         nn.Dropout(0.5),
         nn.Linear(256, 3),
     )
+    if MODEL_PATH.exists():
+        model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
+        print("Loaded existing model for continued training")
     model = model.to(device)
 
     criterion = nn.CrossEntropyLoss()
