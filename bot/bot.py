@@ -37,59 +37,59 @@ def get_bot():
 def get_start_keyboard():
     kb = [
         [InlineKeyboardButton(
-            text="Open Mini App",
+            text="Открыть Mini App",
             web_app={"url": os.getenv("WEBAPP_URL", "https://catorbread.onrender.com")}
         )],
-        [InlineKeyboardButton(text="How it works", callback_data="how_it_works")],
+        [InlineKeyboardButton(text="Как это работает", callback_data="how_it_works")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=kb)
 
 @router.message(Command("start"))
 async def cmd_start(message: Message):
     await message.answer(
-        "<b>Cat or Bread?</b>\n\n"
-        "Send me a photo and I'll tell you if it's a cat or a loaf of bread!\n\n"
-        "Just send any image, or open the Mini App below.",
+        "<b>Кот или Хлеб?</b>\n\n"
+        "Отправь фото, и я скажу: это котик или булочка!\n\n"
+        "Просто отправь изображение или открой Mini App.",
         reply_markup=get_start_keyboard()
     )
 
 @router.message(Command("help"))
 async def cmd_help(message: Message):
     await message.answer(
-        "How to use:\n\n"
-        "1. Send me a photo of a cat or bread\n"
-        "2. I'll analyze it with AI\n"
-        "3. You'll get a result with confidence percentage\n\n"
-        "The model was trained on thousands of cat and bread images!"
+        "Как пользоваться:\n\n"
+        "1. Отправь фото кота или хлеба\n"
+        "2. Нейросеть проанализирует его\n"
+        "3. Получишь результат с процентом уверенности\n\n"
+        "Модель обучена на тысячах изображений котов и выпечки!"
     )
 
 @router.callback_query(F.data == "how_it_works")
 async def callback_how(callback: CallbackQuery):
     await callback.message.edit_text(
-        "<b>How it works</b>\n\n"
-        "I use a neural network (ResNet18) trained to distinguish cats from bread.\n\n"
-        "The model looks at shapes, textures, colors, and patterns to decide:\n"
-        "- Fluffy + whiskers + pointy ears = Cat\n"
-        "- Brown + crust + loaf shape = Bread\n\n"
-        "Send me a photo to try it!",
+        "<b>Как это работает</b>\n\n"
+        "Я использую нейросеть (ResNet18), обученную отличать котов от хлеба.\n\n"
+        "Модель анализирует формы, текстуры, цвета и паттерны:\n"
+        "- Пушистость + усы + ушки = Кот\n"
+        "- Корочка + форма батона = Хлеб\n\n"
+        "Отправь фото и попробуй!",
         reply_markup=InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text="Back", callback_data="back")]]
+            inline_keyboard=[[InlineKeyboardButton(text="Назад", callback_data="back")]]
         )
     )
 
 @router.callback_query(F.data == "back")
 async def callback_back(callback: CallbackQuery):
     await callback.message.edit_text(
-        "<b>Cat or Bread?</b>\n\n"
-        "Send me a photo and I'll tell you if it's a cat or a loaf of bread!\n\n"
-        "Just send any image, or open the Mini App below.",
+        "<b>Кот или Хлеб?</b>\n\n"
+        "Отправь фото, и я скажу: это котик или булочка!\n\n"
+        "Просто отправь изображение или открой Mini App.",
         reply_markup=get_start_keyboard()
     )
 
 @router.message(F.photo)
 async def handle_photo(message: Message):
     bot = get_bot()
-    processing_msg = await message.reply("Analyzing your image...")
+    processing_msg = await message.reply("Анализирую изображение...")
 
     try:
         file = await bot.get_file(message.photo[-1].file_id)
@@ -99,7 +99,7 @@ async def handle_photo(message: Message):
         result = predict(image_data)
 
         if "error" in result:
-            await processing_msg.edit_text(f"Error: {result['error']}")
+            await processing_msg.edit_text(f"Ошибка: {result['error']}")
             return
 
         label = result["label"]
@@ -110,23 +110,23 @@ async def handle_photo(message: Message):
         bar_bread = "▓" * int(result["probabilities"]["bread"] / 10) + "░" * (10 - int(result["probabilities"]["bread"] / 10))
 
         response = (
-            f"<b>It's a {label}!</b> ({desc})\n\n"
-            f"Confidence: <b>{confidence}%</b>\n\n"
-            f"Cat   {bar_cat}  {result['probabilities']['cat']}%\n"
-            f"Bread {bar_bread}  {result['probabilities']['bread']}%"
+            f"<b>Это {label}!</b> ({desc})\n\n"
+            f"Уверенность: <b>{confidence}%</b>\n\n"
+            f"Кот   {bar_cat}  {result['probabilities']['cat']}%\n"
+            f"Хлеб  {bar_bread}  {result['probabilities']['bread']}%"
         )
 
         await processing_msg.edit_text(response)
 
     except Exception as e:
         logger.error(f"Error processing photo: {e}")
-        await processing_msg.edit_text("Sorry, I couldn't process that image. Try another one.")
+        await processing_msg.edit_text("Извини, не смог обработать это изображение. Попробуй другое.")
 
 @router.message()
 async def handle_other(message: Message):
     if message.text and not message.text.startswith("/"):
         await message.reply(
-            "Send me a photo, not text! Or use /start to see the options."
+            "Отправь фото, а не текст! Используй /start чтобы увидеть команды."
         )
 
 async def main():

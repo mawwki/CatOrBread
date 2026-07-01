@@ -57,8 +57,8 @@ def predict(image_bytes_or_path):
 
     return {
         "prediction": CLASSES[predicted],
-        "label": "Cat" if predicted == 0 else "Bread",
-        "description": "fluffy feline friend" if predicted == 0 else "delicious baked good",
+        "label": "Кот" if predicted == 0 else "Хлеб",
+        "description": "пушистый котик" if predicted == 0 else "аппетитная выпечка",
         "confidence": round(max(cat_prob, bread_prob) * 100, 2),
         "probabilities": {
             "cat": round(cat_prob * 100, 2),
