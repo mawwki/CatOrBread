@@ -1,4 +1,4 @@
-"""Train a 3-class classifier (cat / bread / other) using ResNet18"""
+"""Fine-tune existing 3-class model with more epochs"""
 import os
 import sys
 import random
@@ -13,7 +13,6 @@ from pathlib import Path
 DATA_DIR = Path(__file__).parent / "data"
 MODEL_DIR = Path(__file__).parent / "model"
 MODEL_PATH = MODEL_DIR / "cat_or_bread.pth"
-os.makedirs(MODEL_DIR, exist_ok=True)
 
 CLASSES = ["cat", "bread", "other"]
 CLASS_LABELS = {"cat": 0, "bread": 1, "other": 2}
@@ -22,10 +21,8 @@ class ImageFolderDataset(Dataset):
     def __init__(self, data, transform=None):
         self.transform = transform
         self.data = data
-
     def __len__(self):
         return len(self.data)
-
     def __getitem__(self, idx):
         path, label = self.data[idx]
         img = Image.open(path).convert("RGB")
@@ -72,17 +69,19 @@ def train():
 
     train_ds = ImageFolderDataset(train_data, train_transform)
     val_ds = ImageFolderDataset(val_data, val_transform)
+    train_loader = DataLoader(train_ds, batch_size=32, shuffle=True, num_workers=0)
+    val_loader = DataLoader(val_ds, batch_size=32, shuffle=False, num_workers=0)
 
-    train_loader = DataLoader(train_ds, batch_size=32, shuffle=True, num_workers=2)
-    val_loader = DataLoader(val_ds, batch_size=32, shuffle=False, num_workers=2)
-
-    model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+    model = models.resnet18(weights=None)
     model.fc = nn.Sequential(
         nn.Linear(512, 256),
         nn.ReLU(),
         nn.Dropout(0.5),
         nn.Linear(256, 3),
     )
+    if MODEL_PATH.exists():
+        model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
+        print("Loaded existing model")
     model = model.to(device)
 
     counts = [0, 0, 0]
@@ -94,11 +93,32 @@ def train():
     print(f"Class weights: {weights}")
 
     criterion = nn.CrossEntropyLoss(weight=class_weight)
-    optimizer = optim.AdamW(model.parameters(), lr=0.0003, weight_decay=1e-4)
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=15)
+    optimizer = optim.AdamW(model.parameters(), lr=0.0001, weight_decay=1e-4)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20)
 
     best_acc = 0.0
-    for epoch in range(20):
+    # First pass: find current best accuracy from file
+    try:
+        state = torch.load(MODEL_PATH, map_location=device)
+        model.load_state_dict(state)
+        print("Reloaded best model for evaluation")
+        model.eval()
+        val_correct = 0
+        val_total = 0
+        with torch.no_grad():
+            for inputs, labels in val_loader:
+                inputs, labels = inputs.to(device), labels.to(device)
+                outputs = model(inputs)
+                _, predicted = torch.max(outputs, 1)
+                val_total += labels.size(0)
+                val_correct += (predicted == labels).sum().item()
+        best_acc = 100 * val_correct / val_total
+        print(f"Current best val acc: {best_acc:.1f}%")
+        model.train()
+    except Exception as e:
+        print(f"Could not evaluate saved model: {e}")
+
+    for epoch in range(30):
         model.train()
         running_loss = 0.0
         correct = 0
