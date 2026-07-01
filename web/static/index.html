@@ -43,7 +43,7 @@
         </div>
         <p class="upload-text">Drop your image here</p>
         <p class="upload-hint">or click to browse</p>
-        <input type="file" id="fileInput" accept="image/*" hidden>
+        <input type="file" id="fileInput" accept="image/*">
       </div>
       <div class="preview-area" id="previewArea" hidden>
         <img id="previewImage" alt="Preview">
@@ -153,47 +153,65 @@ const catIcon = document.getElementById('catResultIcon');
 const breadIcon = document.getElementById('breadResultIcon');
 const resultBadge = document.getElementById('resultBadge');
 
-uploadArea.addEventListener('click', () => fileInput.click());
 uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
 uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
-uploadArea.addEventListener('drop', (e) => { e.preventDefault(); uploadArea.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
-fileInput.addEventListener('change', (e) => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+uploadArea.addEventListener('drop', (e) => { e.preventDefault(); uploadArea.classList.remove('dragover'); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', (e) => { if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]); });
 
 function handleFile(file) {
-  if (!file || !file.type.startsWith('image/')) return;
+  if (!file) { showError('No file selected'); return; }
+  showLoading();
   const reader = new FileReader();
   reader.onload = (e) => {
     previewImage.src = e.target.result;
     uploadContent.hidden = true;
     previewArea.hidden = false;
-    loadingArea.hidden = true;
-    results.hidden = true;
-    errorArea.hidden = true;
   };
+  reader.onerror = () => showError('Failed to read file');
   reader.readAsDataURL(file);
   predictFile(file);
 }
 
 async function predictFile(file) {
-  previewArea.hidden = true;
-  loadingArea.hidden = false;
-  errorArea.hidden = true;
-  results.hidden = true;
-
   const formData = new FormData();
   formData.append('file', file);
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+
   try {
-    const res = await fetch('/predict', { method: 'POST', body: formData });
+    const res = await fetch('/predict', { method: 'POST', body: formData, signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) {
+      let msg = 'Server error';
+      try { const e = await res.json(); msg = e.error || msg; } catch {}
+      throw new Error(msg);
+    }
     const data = await res.json();
     if (data.error) throw new Error(data.error);
     showResults(data);
   } catch (err) {
-    loadingArea.hidden = true;
-    previewArea.hidden = false;
-    errorArea.hidden = false;
-    errorText.textContent = err.message || 'Failed to analyze image';
+    if (err.name === 'AbortError') {
+      showError('Request timed out. The server may be waking up, please try again.');
+    } else {
+      showError(err.message || 'Failed to analyze image');
+    }
   }
+}
+
+function showLoading() {
+  previewArea.hidden = true;
+  loadingArea.hidden = false;
+  results.hidden = true;
+  errorArea.hidden = true;
+}
+
+function showError(msg) {
+  loadingArea.hidden = true;
+  results.hidden = true;
+  errorArea.hidden = false;
+  previewArea.hidden = false;
+  errorText.textContent = msg;
 }
 
 function showResults(data) {
@@ -202,7 +220,6 @@ function showResults(data) {
   errorArea.hidden = true;
 
   const isCat = data.prediction === 'cat';
-  const mainProb = isCat ? data.probabilities.cat : data.probabilities.bread;
 
   resultLabel.textContent = `It's a ${data.label}!`;
   resultDesc.textContent = data.description;
@@ -216,7 +233,6 @@ function showResults(data) {
   breadValue.textContent = data.probabilities.bread + '%';
 
   badgeText.textContent = `Confidence: ${data.confidence}%`;
-
   resultBadge.className = 'result-badge ' + (isCat ? 'badge-cat' : 'badge-bread');
 }
 
