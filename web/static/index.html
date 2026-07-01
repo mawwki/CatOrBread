@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cat or Bread?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <main class="container">
+    <header class="header">
+      <div class="logo">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-label="Cat or Bread logo">
+          <rect x="2" y="2" width="36" height="36" rx="18" fill="var(--color-primary)" opacity="0.15"/>
+          <path d="M20 8c-4 0-7 2.5-7 6 0 2 .8 3.5 2 4.5V22a5 5 0 0010 0v-3.5c1.2-1 2-2.5 2-4.5 0-3.5-3-6-7-6z" fill="var(--color-primary)"/>
+          <circle cx="17" cy="14" r="1.5" fill="var(--color-background)"/>
+          <circle cx="23" cy="14" r="1.5" fill="var(--color-background)"/>
+          <path d="M14 28c0 2 2 4 6 4s6-2 6-4" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round"/>
+          <path d="M8 27c1-3 4-5 7-5" stroke="var(--color-accent)" stroke-width="2" stroke-linecap="round"/>
+          <path d="M32 27c-1-3-4-5-7-5" stroke="var(--color-accent)" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span class="logo-text">Cat or Bread?</span>
+      </div>
+      <p class="subtitle">Upload a photo and the AI will tell you: is it a fluffy cat or a tasty loaf?</p>
+    </header>
+
+    <section class="upload-area" id="uploadArea">
+      <div class="upload-content" id="uploadContent">
+        <div class="upload-icon">
+          <svg width="56" height="56" viewBox="0 0 56 56" fill="none" aria-label="Upload icon">
+            <rect x="8" y="14" width="40" height="32" rx="6" stroke="var(--color-primary)" stroke-width="2.5" fill="none"/>
+            <circle cx="22" cy="26" r="4" stroke="var(--color-primary)" stroke-width="2.5" fill="none"/>
+            <path d="M10 42l12-14 8 10 6-4 10 12" stroke="var(--color-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <path d="M36 14V6M40 10h-8" stroke="var(--color-accent)" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <p class="upload-text">Drop your image here</p>
+        <p class="upload-hint">or click to browse</p>
+        <input type="file" id="fileInput" accept="image/*" hidden>
+      </div>
+      <div class="preview-area" id="previewArea" hidden>
+        <img id="previewImage" alt="Preview">
+        <button class="reset-btn" id="resetBtn" aria-label="Choose another image">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M3 12a9 9 0 109-9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M3 3v5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Try another
+        </button>
+      </div>
+      <div class="loading-area" id="loadingArea" hidden>
+        <div class="spinner"></div>
+        <p class="loading-text">AI is thinking...</p>
+      </div>
+    </section>
+
+    <section class="results" id="results" hidden>
+      <div class="result-card" id="resultCard">
+        <div class="result-icon" id="resultIcon">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none" id="catResultIcon">
+            <path d="M24 10c-5 0-9 3.5-9 8s2 4.5 3 5.5V28a6 6 0 0012 0v-4.5c1-1 3-1 3-5.5s-4-8-9-8z" fill="var(--color-primary)"/>
+            <circle cx="20" cy="17" r="2" fill="var(--color-background)"/>
+            <circle cx="28" cy="17" r="2" fill="var(--color-background)"/>
+            <path d="M17 34c0 2 3 4 7 4s7-2 7-4" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none" id="breadResultIcon" hidden>
+            <ellipse cx="24" cy="28" rx="16" ry="10" fill="var(--color-accent)" opacity="0.25"/>
+            <path d="M12 26c0-6 2-12 12-12s12 6 12 12v6H12v-6z" fill="var(--color-accent)" opacity="0.6"/>
+            <path d="M14 26c0-4 2-8 10-8s10 4 10 8" stroke="var(--color-accent)" stroke-width="2" fill="none"/>
+            <path d="M18 26l3-3M24 26l3-3M30 26l3-3" stroke="var(--color-background)" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <h2 class="result-label" id="resultLabel">It's a Cat!</h2>
+        <p class="result-desc" id="resultDesc">fluffy feline friend</p>
+        <div class="confidence-bar-container">
+          <div class="confidence-row">
+            <span class="confidence-label">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M10 2c-4 0-7 3-7 6s1.5 3.5 2 4V16a5 5 0 0010 0v-4c.5-.5 2-1 2-4 0-3-3-6-7-6z" fill="var(--color-primary)" opacity="0.3"/>
+              </svg>
+              Cat
+            </span>
+            <div class="confidence-track">
+              <div class="confidence-fill cat-fill" id="catFill" style="width:50%"></div>
+            </div>
+            <span class="confidence-value" id="catValue">50%</span>
+          </div>
+          <div class="confidence-row">
+            <span class="confidence-label">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <ellipse cx="10" cy="12" rx="7" ry="4" fill="var(--color-accent)" opacity="0.3"/>
+                <path d="M5 11c0-3 1-6 5-6s5 3 5 6" stroke="var(--color-accent)" stroke-width="1.5" fill="none"/>
+              </svg>
+              Bread
+            </span>
+            <div class="confidence-track">
+              <div class="confidence-fill bread-fill" id="breadFill" style="width:50%"></div>
+            </div>
+            <span class="confidence-value" id="breadValue">50%</span>
+          </div>
+        </div>
+        <div class="result-badge" id="resultBadge">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="2" fill="none"/>
+            <path d="M10 6v4M10 13v1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span id="badgeText">Confidence: 85%</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="error-area" id="errorArea" hidden>
+      <div class="error-card">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <circle cx="14" cy="14" r="12" stroke="var(--color-destructive)" stroke-width="2" fill="none"/>
+          <path d="M14 8v6M14 18v1" stroke="var(--color-destructive)" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <p id="errorText">Something went wrong. Try again.</p>
+        <button class="reset-btn" onclick="resetAll()">Try again</button>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>Powered by AI &middot; Cat or Bread &copy; 2026</p>
+    </footer>
+  </main>
+
+<script>
+const uploadArea = document.getElementById('uploadArea');
+const uploadContent = document.getElementById('uploadContent');
+const previewArea = document.getElementById('previewArea');
+const loadingArea = document.getElementById('loadingArea');
+const fileInput = document.getElementById('fileInput');
+const previewImage = document.getElementById('previewImage');
+const results = document.getElementById('results');
+const errorArea = document.getElementById('errorArea');
+const errorText = document.getElementById('errorText');
+const resultLabel = document.getElementById('resultLabel');
+const resultDesc = document.getElementById('resultDesc');
+const catFill = document.getElementById('catFill');
+const breadFill = document.getElementById('breadFill');
+const catValue = document.getElementById('catValue');
+const breadValue = document.getElementById('breadValue');
+const badgeText = document.getElementById('badgeText');
+const catIcon = document.getElementById('catResultIcon');
+const breadIcon = document.getElementById('breadResultIcon');
+const resultBadge = document.getElementById('resultBadge');
+
+uploadArea.addEventListener('click', () => fileInput.click());
+uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+uploadArea.addEventListener('drop', (e) => { e.preventDefault(); uploadArea.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', (e) => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+function handleFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    previewImage.src = e.target.result;
+    uploadContent.hidden = true;
+    previewArea.hidden = false;
+    loadingArea.hidden = true;
+    results.hidden = true;
+    errorArea.hidden = true;
+  };
+  reader.readAsDataURL(file);
+  predictFile(file);
+}
+
+async function predictFile(file) {
+  previewArea.hidden = true;
+  loadingArea.hidden = false;
+  errorArea.hidden = true;
+  results.hidden = true;
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch('/predict', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    showResults(data);
+  } catch (err) {
+    loadingArea.hidden = true;
+    previewArea.hidden = false;
+    errorArea.hidden = false;
+    errorText.textContent = err.message || 'Failed to analyze image';
+  }
+}
+
+function showResults(data) {
+  loadingArea.hidden = true;
+  results.hidden = false;
+  errorArea.hidden = true;
+
+  const isCat = data.prediction === 'cat';
+  const mainProb = isCat ? data.probabilities.cat : data.probabilities.bread;
+
+  resultLabel.textContent = `It's a ${data.label}!`;
+  resultDesc.textContent = data.description;
+
+  catIcon.hidden = !isCat;
+  breadIcon.hidden = isCat;
+
+  catFill.style.width = data.probabilities.cat + '%';
+  breadFill.style.width = data.probabilities.bread + '%';
+  catValue.textContent = data.probabilities.cat + '%';
+  breadValue.textContent = data.probabilities.bread + '%';
+
+  badgeText.textContent = `Confidence: ${data.confidence}%`;
+
+  resultBadge.className = 'result-badge ' + (isCat ? 'badge-cat' : 'badge-bread');
+}
+
+function resetAll() {
+  uploadContent.hidden = false;
+  previewArea.hidden = true;
+  loadingArea.hidden = true;
+  results.hidden = true;
+  errorArea.hidden = true;
+  fileInput.value = '';
+}
+
+document.getElementById('resetBtn').addEventListener('click', (e) => { e.stopPropagation(); resetAll(); });
+</script>
+</body>
+</html>
