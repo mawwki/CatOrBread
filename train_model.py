@@ -5,8 +5,10 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 from torchvision import transforms, models
-from PIL import Image
+from torchvision.transforms import InterpolationMode
+from PIL import Image, ImageFilter
 from pathlib import Path
+from io import BytesIO
 
 DATA_DIR = Path(__file__).parent / "data"
 MODEL_DIR = Path(__file__).parent / "model"
@@ -15,6 +17,23 @@ os.makedirs(MODEL_DIR, exist_ok=True)
 
 CLASSES = ["cat", "bread", "other"]
 CLASS_LABELS = {"cat": 0, "bread": 1, "other": 2}
+
+
+class TelegramCompression:
+    def __call__(self, img):
+        if random.random() < 0.75:
+            w, h = img.size
+            scale = random.choice([0.45, 0.6, 0.75, 0.9])
+            small = (max(64, int(w * scale)), max(64, int(h * scale)))
+            img = img.resize(small, Image.Resampling.BILINEAR).resize((w, h), Image.Resampling.BILINEAR)
+        if random.random() < 0.85:
+            buf = BytesIO()
+            img.save(buf, format="JPEG", quality=random.randint(35, 88))
+            buf.seek(0)
+            img = Image.open(buf).convert("RGB")
+        if random.random() < 0.2:
+            img = img.filter(ImageFilter.GaussianBlur(radius=random.uniform(0.2, 1.0)))
+        return img
 
 
 class ImageFolderDataset(Dataset):
@@ -55,10 +74,12 @@ def train():
     print(f"Train: {len(train_data)}, Val: {len(val_data)}")
 
     train_transform = transforms.Compose([
-        transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
+        TelegramCompression(),
+        transforms.RandomResizedCrop(224, scale=(0.72, 1.0), interpolation=InterpolationMode.BILINEAR),
         transforms.RandomHorizontalFlip(),
         transforms.RandomRotation(15),
-        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.1),
+        transforms.RandomPerspective(distortion_scale=0.15, p=0.25),
+        transforms.ColorJitter(brightness=0.25, contrast=0.25, saturation=0.15),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ])
@@ -77,7 +98,7 @@ def train():
     class_counts = [train_labels.count(i) for i in range(3)]
     print(f"Train class counts: {class_counts}")
     weights = [1.0 / class_counts[lbl] for lbl in train_labels]
-    sampler = WeightedRandomSampler(weights, len(train_data), replacement=True)
+    sampler = WeightedRandomSampler(weights, min(len(train_data), 1200), replacement=True)
 
     train_loader = DataLoader(train_ds, batch_size=32, sampler=sampler, num_workers=0)
     val_loader = DataLoader(val_ds, batch_size=32, shuffle=False, num_workers=0)
@@ -95,11 +116,11 @@ def train():
     model = model.to(device)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.AdamW(model.parameters(), lr=0.0003, weight_decay=1e-4)
+    optimizer = optim.AdamW(model.parameters(), lr=0.0001, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20)
 
     best_acc = 0.0
-    for epoch in range(25):
+    for epoch in range(12):
         model.train()
         running_loss = 0.0
         correct = 0
