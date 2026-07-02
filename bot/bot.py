@@ -7,12 +7,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from aiogram import Bot, Dispatcher, Router, F
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, BufferedInputFile
 from aiogram.filters import Command
 from aiogram.client.default import DefaultBotProperties
 import asyncio
 
 from model.predict import predict
+from model.generate import generate_cat_bytes
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ dp = Dispatcher()
 router = Router()
 
 bot_instance = None
+admin_ids = set()
 
 def get_bot():
     global bot_instance
@@ -40,7 +42,7 @@ def get_start_keyboard():
             text="Открыть Mini App",
             web_app={"url": os.getenv("WEBAPP_URL", "https://catorbread.onrender.com")}
         )],
-        [InlineKeyboardButton(text="Как это работает", callback_data="how_it_works")],
+        [InlineKeyboardButton(text="Зачем это", callback_data="how_it_works")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=kb)
 
@@ -53,25 +55,53 @@ async def cmd_start(message: Message):
         reply_markup=get_start_keyboard()
     )
 
+@router.message(Command("generate"))
+async def cmd_generate(message: Message):
+    bot = get_bot()
+    processing = await message.reply("Генерирую котика...")
+
+    image_bytes = generate_cat_bytes()
+    if image_bytes is None:
+        await processing.edit_text(
+            "Генератор ещё не обучен. Запусти `python3 train_gan.py` чтобы обучить."
+        )
+        return
+
+    await processing.delete()
+    await bot.send_photo(
+        message.chat.id,
+        photo=BufferedInputFile(image_bytes, filename="cat.jpg"),
+        caption="Вот сгенерированный котик!"
+    )
+
 @router.message(Command("help"))
 async def cmd_help(message: Message):
     await message.answer(
         "Как пользоваться:\n\n"
-        "1. Отправь фото кота или хлеба\n"
-        "2. Нейросеть проанализирует его\n"
-        "3. Получишь результат с процентом уверенности\n\n"
-        "Модель обучена на тысячах изображений котов и выпечки!"
+        "1. Отправь фото кота или хлеба — нейросеть определит, кто это\n"
+        "2. Используй /generate — нейросеть нарисует нового котика\n\n"
+        "Модели обучены на тысячах изображений!"
     )
+
+@router.message(Command("admin"))
+async def cmd_admin(message: Message):
+    user_id = message.from_user.id
+    if user_id in admin_ids:
+        admin_ids.remove(user_id)
+        await message.reply("Режим администратора выключен.")
+    else:
+        admin_ids.add(user_id)
+        await message.reply(
+            "Режим администратора включён. Все фото от других пользователей "
+            "будут приходить сюда.\n"
+            "Введи /admin ещё раз чтобы выключить."
+        )
 
 @router.callback_query(F.data == "how_it_works")
 async def callback_how(callback: CallbackQuery):
     await callback.message.edit_text(
-        "<b>Как это работает</b>\n\n"
-        "Я использую нейросеть (ResNet18), обученную отличать котов от хлеба.\n\n"
-        "Модель анализирует формы, текстуры, цвета и паттерны:\n"
-        "- Пушистость + усы + ушки = Кот\n"
-        "- Корочка + форма батона = Хлеб\n\n"
-        "Отправь фото и попробуй!",
+        "<b>Для чего это нужно?</b>\n\n"
+        "В наше время мы часто сталкиваемся с проблемой, что котики становятся всё больше похожи на сладкие булочки, и чтобы их отличать был создан этот бот, а то странно будет выглядеть если вы укусите кота и погладите хлеб!",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text="Назад", callback_data="back")]]
         )
@@ -108,30 +138,50 @@ async def handle_photo(message: Message):
 
         is_other = result["prediction"] == "other"
 
+        if not is_other:
+            def bar(v):
+                return "▓" * int(v / 10) + "░" * (10 - int(v / 10))
+
+            p = result["probabilities"]
+            response = (
+                f"<b>Это {label}!</b>\n\n"
+                f"Уверенность: <b>{confidence}%</b>\n\n"
+                f"Кот    {bar(p['cat'])}  {p['cat']}%\n"
+                f"Хлеб   {bar(p['bread'])}  {p['bread']}%\n"
+                f"Другое {bar(p['other'])}  {p['other']}%"
+            )
+        else:
+            response = "<b>И чё ты мне скинул?</b> Отправь фото кота или хлеба"
+
+        if admin_ids:
+            sender = message.from_user
+            sender_name = sender.full_name or sender.username or f"id{sender.id}"
+            mention = f"<a href='tg://user?id={sender.id}'>{sender_name}</a>"
+            for admin_id in list(admin_ids):
+                if admin_id == message.chat.id:
+                    continue
+                try:
+                    caption = f"📸 Фото от {mention}\n\n{response}"
+                    await bot.send_photo(
+                        admin_id,
+                        photo=BufferedInputFile(image_data, filename="photo.jpg"),
+                        caption=caption,
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to forward to admin {admin_id}: {e}")
+            if message.chat.id not in admin_ids:
+                await message.reply("📸 Фото отправлено администратору.")
+
         if is_other:
             await processing_msg.delete()
             await bot.send_sticker(
                 message.chat.id,
                 sticker="CAACAgIAAxkBAAEFASJqRS1bRHJa4veOggx56dEgrdWRswACp3EAAh5t8EgXiDMpQ5GFwzwE"
             )
-            await message.reply(
-                "<b>И чё ты мне скинул?</b> Отправь фото кота или хлеба"
-            )
+            await message.reply(response)
             return
         else:
-            def bar(v):
-                return "▓" * int(v / 10) + "░" * (10 - int(v / 10))
-
-            p = result["probabilities"]
-            response = (
-                f"<b>Это {label}!</b> ({desc})\n\n"
-                f"Уверенность: <b>{confidence}%</b>\n\n"
-                f"🐱 Кот    {bar(p['cat'])}  {p['cat']}%\n"
-                f"🍞 Хлеб   {bar(p['bread'])}  {p['bread']}%\n"
-                f"❓ Другое {bar(p['other'])}  {p['other']}%"
-            )
-
-        await processing_msg.edit_text(response)
+            await processing_msg.edit_text(response)
 
     except Exception as e:
         logger.error(f"Error processing photo: {e}")
