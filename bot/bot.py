@@ -175,8 +175,7 @@ async def handle_photo(message: Message):
                     )
                 except Exception as e:
                     logger.error(f"Failed to forward to admin {admin_id}: {e}")
-            if message.chat.id not in admin_ids:
-                await message.reply("📸 Фото отправлено администратору.")
+
 
         if is_other:
             await processing_msg.delete()
