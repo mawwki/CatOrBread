@@ -15,6 +15,8 @@ import asyncio
 from model.predict import predict
 from model.generate import generate_cat_bytes
 
+VERSION = (Path(__file__).parent.parent / "VERSION").read_text().strip()
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -96,6 +98,10 @@ async def cmd_admin(message: Message):
             "будут приходить сюда.\n"
             "Введи /admin ещё раз чтобы выключить."
         )
+
+@router.message(Command("v"))
+async def cmd_version(message: Message):
+    await message.reply(f"CatOrBread v{VERSION}")
 
 @router.callback_query(F.data == "how_it_works")
 async def callback_how(callback: CallbackQuery):
