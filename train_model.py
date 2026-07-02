@@ -1,4 +1,4 @@
-"""Train 3-class classifier with balanced sampling"""
+"""Train classifier with balanced sampling"""
 import os, sys, random
 import torch
 import torch.nn as nn
@@ -15,7 +15,7 @@ MODEL_DIR = Path(__file__).parent / "model"
 MODEL_PATH = MODEL_DIR / "cat_or_bread.pth"
 os.makedirs(MODEL_DIR, exist_ok=True)
 
-CLASSES = ["cat", "bread", "other"]
+ALL_CLASSES = ["cat", "bread", "other"]
 CLASS_LABELS = {"cat": 0, "bread": 1, "other": 2}
 
 
@@ -52,25 +52,38 @@ class ImageFolderDataset(Dataset):
 
 def load_data():
     all_data = []
+    active_classes = []
     for cls_name, cls_idx in CLASS_LABELS.items():
         cls_dir = DATA_DIR / cls_name
         paths = list(cls_dir.glob("*.*"))
+        if paths:
+            active_classes.append(cls_name)
         for p in paths:
             all_data.append((str(p), cls_idx))
         print(f"{cls_name}: {len(paths)} images")
-    return all_data
+    return all_data, active_classes
 
 
 def train():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    all_data = load_data()
-    random.shuffle(all_data)
+    all_data, active_classes = load_data()
+    if len(all_data) == 0:
+        print("No data found!")
+        return
 
-    split_idx = int(len(all_data) * 0.8)
-    train_data = all_data[:split_idx]
-    val_data = all_data[split_idx:]
+    num_classes = len(active_classes)
+    print(f"Active classes: {active_classes} ({num_classes} classes)")
+
+    # Remap labels to contiguous indices
+    class_to_idx = {cls: i for i, cls in enumerate(active_classes)}
+    remapped_data = [(path, class_to_idx[ALL_CLASSES[label]]) for path, label in all_data]
+
+    random.shuffle(remapped_data)
+    split_idx = int(len(remapped_data) * 0.8)
+    train_data = remapped_data[:split_idx]
+    val_data = remapped_data[split_idx:]
     print(f"Train: {len(train_data)}, Val: {len(val_data)}")
 
     train_transform = transforms.Compose([
@@ -93,9 +106,9 @@ def train():
     train_ds = ImageFolderDataset(train_data, train_transform)
     val_ds = ImageFolderDataset(val_data, val_transform)
 
-    # Balanced sampling: equal probability for each class
+    # Balanced sampling
     train_labels = [lbl for _, lbl in train_data]
-    class_counts = [train_labels.count(i) for i in range(3)]
+    class_counts = [train_labels.count(i) for i in range(num_classes)]
     print(f"Train class counts: {class_counts}")
     weights = [1.0 / class_counts[lbl] for lbl in train_labels]
     sampler = WeightedRandomSampler(weights, min(len(train_data), 1200), replacement=True)
@@ -108,11 +121,14 @@ def train():
         nn.Linear(512, 256),
         nn.ReLU(),
         nn.Dropout(0.5),
-        nn.Linear(256, 3),
+        nn.Linear(256, num_classes),
     )
     if MODEL_PATH.exists():
-        model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
-        print("Loaded existing model for continued training")
+        try:
+            model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
+            print("Loaded existing model for continued training")
+        except:
+            print("Existing model incompatible, starting fresh")
     model = model.to(device)
 
     criterion = nn.CrossEntropyLoss()
@@ -142,7 +158,7 @@ def train():
         model.eval()
         val_correct = 0
         val_total = 0
-        per_class = {c: {"correct": 0, "total": 0} for c in range(3)}
+        per_class = {c: {"correct": 0, "total": 0} for c in range(num_classes)}
         with torch.no_grad():
             for inputs, labels in val_loader:
                 inputs, labels = inputs.to(device), labels.to(device)
@@ -157,8 +173,8 @@ def train():
                         per_class[lbl]["correct"] += 1
         val_acc = 100 * val_correct / val_total
         cls_report = " ".join(
-            f"{CLASSES[c]}={100*per_class[c]['correct']/max(per_class[c]['total'],1):.0f}%"
-            for c in range(3)
+            f"{active_classes[c]}={100*per_class[c]['correct']/max(per_class[c]['total'],1):.0f}%"
+            for c in range(num_classes)
         )
         print(f"Epoch {epoch+1}: Loss={running_loss/len(train_loader):.4f} "
               f"Train={train_acc:.1f}% Val={val_acc:.1f}% [{cls_report}]")
